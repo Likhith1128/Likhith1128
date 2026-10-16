@@ -4,25 +4,24 @@ import 'package:icare_app/app.dart';
 import 'package:icare_app/models.dart';
 import 'package:icare_app/prompts.dart';
 import 'package:icare_app/study_controller.dart';
-import 'package:icare_app/study_scope.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<StudyController> startApp(
   WidgetTester tester, {
   bool welcomed = false,
+  bool authenticated = true,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(390, 844);
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  SharedPreferences.setMockInitialValues(
-    welcomed ? {StudyController.storageKey: '{"welcomed":true}'} : {},
-  );
+  SharedPreferences.setMockInitialValues({
+    StudyController.storageKey:
+        '{"welcomed":$welcomed,"authenticated":$authenticated}',
+  });
   final preferences = await SharedPreferences.getInstance();
   final controller = StudyController(preferences);
-  await tester.pumpWidget(
-    ICareApp(controller: controller, timing: StudyTiming.instant),
-  );
+  await tester.pumpWidget(ICareApp(controller: controller));
   await tester.pumpAndSettle();
   return controller;
 }
@@ -40,6 +39,67 @@ Future<void> holdTap(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
+  test('legacy demo name is replaced with the enter-name prompt', () async {
+    SharedPreferences.setMockInitialValues({
+      StudyController.storageKey:
+          '{"name":"Jane Smith","welcomed":true,"authenticated":true}',
+    });
+    final controller = StudyController(await SharedPreferences.getInstance());
+
+    expect(controller.name, isEmpty);
+    expect(controller.displayName, 'Enter your name');
+    controller.dispose();
+  });
+
+  testWidgets('sign-up form validates details and opens the study welcome', (
+    tester,
+  ) async {
+    final controller = await startApp(tester, authenticated: false);
+
+    expect(find.text('Create your account'), findsOneWidget);
+    expect(find.byKey(const Key('auth-name')), findsOneWidget);
+    expect(find.byKey(const Key('auth-phone')), findsOneWidget);
+    expect(find.textContaining('Demo only'), findsOneWidget);
+
+    await holdTap(tester, find.byKey(const Key('auth-submit')));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter your name'), findsOneWidget);
+    expect(find.text('Enter a valid email address'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('auth-name')), 'Alex Morgan');
+    await tester.enterText(
+      find.byKey(const Key('auth-email')),
+      'alex@example.com',
+    );
+    await tester.enterText(find.byKey(const Key('auth-phone')), '5551234567');
+    await tester.enterText(find.byKey(const Key('auth-password')), 'study1234');
+    await tester.enterText(
+      find.byKey(const Key('auth-confirm-password')),
+      'study1234',
+    );
+    await holdTap(tester, find.byKey(const Key('auth-submit')));
+    await tester.pumpAndSettle();
+
+    expect(controller.authenticated, isTrue);
+    expect(controller.displayName, 'Alex Morgan');
+    expect(controller.email, 'alex@example.com');
+    expect(controller.phoneNumber, '5551234567');
+    expect(find.text('Welcome to the study'), findsOneWidget);
+  });
+
+  testWidgets('sign-in mode shows email and password fields', (tester) async {
+    await startApp(tester, authenticated: false);
+
+    await holdTap(tester, find.byKey(const Key('auth-mode-toggle')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.byKey(const Key('auth-email')), findsOneWidget);
+    expect(find.byKey(const Key('auth-password')), findsOneWidget);
+    expect(find.byKey(const Key('auth-phone')), findsNothing);
+    expect(find.text('Sign in'), findsOneWidget);
+  });
+
   testWidgets('welcome explains the study and opens home', (tester) async {
     await startApp(tester);
 
@@ -49,9 +109,10 @@ void main() {
     await holdTap(tester, find.byKey(const Key('welcome-continue')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Jane Smith'), findsOneWidget);
+    expect(find.text('Enter your name'), findsOneWidget);
     expect(find.text('Begin'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Activity history'), findsOneWidget);
     expect(find.textContaining('Morning'), findsWidgets);
     expect(find.textContaining('Evening'), findsWidgets);
 
@@ -82,6 +143,41 @@ void main() {
     await expectMorning(StudyGroup.distraction, 'enjoyable topic');
   });
 
+  testWidgets('activity history lists completed activities for today', (
+    tester,
+  ) async {
+    final controller = await startApp(tester, welcomed: true);
+    final bout = controller.startBout();
+    controller.finishBout();
+    controller.saveActivityReport(
+      activity: ActivityKind.running,
+      otherDetail: '',
+      rating: Frequency.often,
+    );
+
+    await holdTap(tester, find.byKey(const Key('home-activity-history')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Activity history'), findsOneWidget);
+    expect(find.text('Running'), findsOneWidget);
+    expect(find.text('Frequency: Often'), findsOneWidget);
+    expect(find.text('Under 1 min'), findsOneWidget);
+    expect(find.byKey(const Key('activity-history-item-0')), findsOneWidget);
+    expect(bout.reportComplete, isTrue);
+  });
+
+  testWidgets('activity history shows an empty state when there are no logs', (
+    tester,
+  ) async {
+    await startApp(tester, welcomed: true);
+
+    await holdTap(tester, find.byKey(const Key('home-activity-history')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No activities logged today'), findsOneWidget);
+    expect(find.text('Completed activities will appear here.'), findsOneWidget);
+  });
+
   testWidgets('activity flow records the bout and the group question', (
     tester,
   ) async {
@@ -100,6 +196,19 @@ void main() {
     await tester.pump();
     expect(find.text('End'), findsOneWidget);
     expect(find.byKey(const Key('elapsed-time')), findsOneWidget);
+    expect(find.text('Heart rate'), findsOneWidget);
+    expect(find.text('BPM'), findsOneWidget);
+    expect(find.textContaining('Demo data'), findsOneWidget);
+    final initialHeartRate = tester.widget<Text>(
+      find.byKey(const Key('heart-rate-value')),
+    );
+    final initialBpm = int.parse(initialHeartRate.data!);
+    expect(initialBpm, inInclusiveRange(60, 110));
+    await tester.pump(const Duration(seconds: 8));
+    final updatedHeartRate = tester.widget<Text>(
+      find.byKey(const Key('heart-rate-value')),
+    );
+    expect(int.parse(updatedHeartRate.data!), isNot(initialBpm));
 
     await holdTap(tester, find.byKey(const Key('end-bout')));
     await tester.pump();
@@ -109,6 +218,9 @@ void main() {
     await holdTap(tester, find.byKey(const Key('end-yes')));
     await tester.pumpAndSettle();
     expect(find.text(activityQuestion), findsOneWidget);
+    expect(find.textContaining('🚴'), findsOneWidget);
+    expect(find.textContaining('🏃'), findsOneWidget);
+    expect(find.textContaining('💭'), findsOneWidget);
     expect(
       find.textContaining('think about your exercise goal'),
       findsOneWidget,
@@ -127,7 +239,7 @@ void main() {
     await holdTap(tester, find.byKey(const Key('save-report')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Jane Smith'), findsOneWidget);
+    expect(find.text('Enter your name'), findsOneWidget);
     expect(controller.completedToday, hasLength(1));
     expect(controller.completedToday.single.activity, ActivityKind.running);
     expect(controller.completedToday.single.rating, Frequency.often);
@@ -176,6 +288,24 @@ void main() {
     final restored = StudyController(await SharedPreferences.getInstance());
     expect(restored.fontChoice, FontChoice.extraLarge);
     expect(restored.welcomed, isTrue);
+  });
+
+  testWidgets('time picker opens in compact numeric entry mode', (
+    tester,
+  ) async {
+    await startApp(tester, welcomed: true);
+
+    await holdTap(tester, find.byKey(const Key('home-settings')));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter your name'), findsOneWidget);
+    await holdTap(tester, find.byKey(const Key('morning-time')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Enter time'), findsOneWidget);
+    expect(find.text('Hour'), findsOneWidget);
+    expect(find.text('Minute'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+    expect(find.text('OK'), findsOneWidget);
   });
 
   testWidgets('home leaves a prompt without marking it read', (tester) async {

@@ -28,7 +28,7 @@ class WelcomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'Hold each button briefly. A light tap will not continue.',
+                  'Tap a button once to continue.',
                   style: Theme.of(context).textTheme.bodyMedium
                       ?.copyWith(color: const Color(0xFF5C6570)),
                 ),

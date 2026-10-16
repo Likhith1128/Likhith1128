@@ -42,15 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60),
-      builder: (context, child) {
-        final media = MediaQuery.of(context);
-        return MediaQuery(
-          data: media.copyWith(
-            textScaler: TextScaler.linear(media.textScaler.scale(1.15)),
-          ),
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
+      initialEntryMode: TimePickerEntryMode.input,
     );
     if (picked == null) return;
     onSelected((picked.hour * 60) + picked.minute);
@@ -90,7 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               controller: _name,
               textCapitalization: TextCapitalization.words,
               style: theme.textTheme.bodyLarge,
-              decoration: const InputDecoration(hintText: 'Jane Smith'),
+              decoration: const InputDecoration(hintText: 'Enter your name'),
               onChanged: controller.setName,
             ),
             const SizedBox(height: 24),

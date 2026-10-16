@@ -15,7 +15,10 @@ class StudyController extends ChangeNotifier {
   final SharedPreferences _prefs;
 
   bool welcomed = false;
-  String name = 'Jane Smith';
+  bool authenticated = false;
+  String name = '';
+  String email = '';
+  String phoneNumber = '';
   StudyGroup group = StudyGroup.exerciseGoals;
   String exerciseGoal = 'good health';
   int morningMinutes = 7 * 60;
@@ -27,7 +30,7 @@ class StudyController extends ChangeNotifier {
 
   String get displayName {
     final trimmed = name.trim();
-    return trimmed.isEmpty ? 'Participant' : trimmed;
+    return trimmed.isEmpty ? 'Enter your name' : trimmed;
   }
 
   String get goalPhrase {
@@ -67,6 +70,18 @@ class StudyController extends ChangeNotifier {
 
   void completeWelcome() {
     welcomed = true;
+    _persist();
+  }
+
+  void completeAuthentication({
+    required String name,
+    required String email,
+    required String phoneNumber,
+  }) {
+    authenticated = true;
+    if (name.trim().isNotEmpty) this.name = name.trim();
+    this.email = email.trim();
+    this.phoneNumber = phoneNumber.trim();
     _persist();
   }
 
@@ -155,8 +170,18 @@ class StudyController extends ChangeNotifier {
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return;
       welcomed = decoded['welcomed'] == true;
+      authenticated = decoded['authenticated'] == true;
+      final storedEmail = decoded['email'];
+      if (storedEmail is String) email = storedEmail;
+      final storedPhone = decoded['phoneNumber'];
+      if (storedPhone is String) phoneNumber = storedPhone;
       final storedName = decoded['name'];
-      if (storedName is String) name = storedName;
+      if (storedName is String &&
+          !(storedName == 'Jane Smith' &&
+              email.isEmpty &&
+              phoneNumber.isEmpty)) {
+        name = storedName;
+      }
       group = StudyGroup.byName(decoded['group'] as String?);
       final storedGoal = decoded['exerciseGoal'];
       if (storedGoal is String) exerciseGoal = storedGoal;
@@ -191,7 +216,10 @@ class StudyController extends ChangeNotifier {
       storageKey,
       jsonEncode({
         'welcomed': welcomed,
+        'authenticated': authenticated,
         'name': name,
+        'email': email,
+        'phoneNumber': phoneNumber,
         'group': group.name,
         'exerciseGoal': exerciseGoal,
         'morningMinutes': morningMinutes,

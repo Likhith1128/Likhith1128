@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'screens/active_bout_screen.dart';
+import 'screens/activity_history_screen.dart';
+import 'screens/authentication_screen.dart';
 import 'screens/begin_activity_screen.dart';
 import 'screens/during_prompt_screen.dart';
 import 'screens/end_confirm_screen.dart';
@@ -30,10 +32,16 @@ class ICareApp extends StatelessWidget {
       title: 'I-CARE',
       debugShowCheckedModeBanner: false,
       theme: buildStudyTheme(),
-      initialRoute: controller.welcomed ? '/home' : '/',
+      initialRoute: !controller.authenticated
+          ? '/auth'
+          : controller.welcomed
+          ? '/home'
+          : '/',
       routes: {
+        '/auth': (_) => const AuthenticationScreen(),
         '/': (_) => const WelcomeScreen(),
         '/home': (_) => const HomeScreen(),
+        '/activity-history': (_) => const ActivityHistoryScreen(),
         '/settings': (_) => const SettingsScreen(),
         '/morning': (_) => const MorningPromptScreen(),
         '/begin': (_) => const BeginActivityScreen(),
