@@ -78,6 +78,14 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 _HomeTile(
+                  key: const Key('home-activity-history'),
+                  label: 'Activity history',
+                  icon: Icons.history,
+                  onPressed: () =>
+                      Navigator.of(context).pushNamed('/activity-history'),
+                ),
+                const SizedBox(height: 20),
+                _HomeTile(
                   key: const Key('home-morning'),
                   label: 'Morning',
                   detail: formatClock(controller.morningMinutes),

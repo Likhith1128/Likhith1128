@@ -54,7 +54,7 @@ class _PostActivityScreenState extends State<PostActivityScreen> {
                   for (final kind in ActivityKind.values) ...[
                     HoldButton(
                       key: Key('activity-${kind.name}'),
-                      label: kind.label,
+                      label: '${_activityEmoji(kind)}  ${kind.label}',
                       icon: _activity == kind
                           ? Icons.check_circle
                           : Icons.circle_outlined,
@@ -84,7 +84,7 @@ class _PostActivityScreenState extends State<PostActivityScreen> {
                   for (final rating in Frequency.values) ...[
                     HoldButton(
                       key: Key('rating-${rating.name}'),
-                      label: rating.label,
+                      label: '${_frequencyEmoji(rating)}  ${rating.label}',
                       icon: _rating == rating
                           ? Icons.check_circle
                           : Icons.circle_outlined,
@@ -117,4 +117,20 @@ class _PostActivityScreenState extends State<PostActivityScreen> {
       ),
     );
   }
+
+  String _activityEmoji(ActivityKind kind) => switch (kind) {
+    ActivityKind.biking => '🚴',
+    ActivityKind.running => '🏃',
+    ActivityKind.weightTraining => '🏋️',
+    ActivityKind.swimming => '🏊',
+    ActivityKind.other => '✨',
+  };
+
+  String _frequencyEmoji(Frequency frequency) => switch (frequency) {
+    Frequency.never => '😌',
+    Frequency.seldom => '🙂',
+    Frequency.sometimes => '🤔',
+    Frequency.often => '💭',
+    Frequency.almostAlways => '🌀',
+  };
 }

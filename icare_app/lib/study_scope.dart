@@ -4,8 +4,8 @@ import 'study_controller.dart';
 
 class StudyTiming {
   const StudyTiming({
-    this.armDelay = const Duration(milliseconds: 1100),
-    this.holdDuration = const Duration(milliseconds: 450),
+    this.armDelay = Duration.zero,
+    this.holdDuration = Duration.zero,
   });
 
   final Duration armDelay;
